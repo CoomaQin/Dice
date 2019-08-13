@@ -48,9 +48,39 @@ function MatchPlayers() {
         db.collection('RoundRecord').doc(roomnumber).update({
           data: {
             is_player2: true,
-            //控制首回合和游戏结束的参数
+            //初始化游戏参数
             first_round_complete: false,
-            is_end: false
+            is_end: false,
+            is_full: false,
+            is_removed: false,
+            player1: {
+              call: {
+                count: 0,
+                num: ""
+              },
+              dice: {
+                one: 0,
+                two: 0,
+                three: 0,
+                four: 0,
+                five: 0,
+                six: 0
+              }
+            },
+            player2: {
+              call: {
+                count: 0,
+                num: ""
+              },
+              dice: {
+                one: 0,
+                two: 0,
+                three: 0,
+                four: 0,
+                five: 0,
+                six: 0
+              }
+            }
           }
         })
         player2 = true
@@ -94,6 +124,8 @@ function Start() {
     ShowButton(context, 20, 30, 40, 10, '摇骰', 'throw', 0)
     ShowButton(context, 80, canvas.height - 30, 40, 10, '确定', 'call', 0)
     ShowButton(context, canvas.width - 40, canvas.height - 30, 40, 10, '开', 'unveil', 0)
+    ShowButton(context, 20, canvas.height - 90, 40, 10, ' 摘', 'remove', 0)
+    ShowButton(context, 60, canvas.height - 90, 40, 10, ' 飞', 'doublecount', 0)
   } else {
     context.fillStyle = '#ffffff'
     context.font = "20px Arial"
@@ -119,27 +151,59 @@ function WaitforPlayer2() {
     success: function(res) {
       if (res.data.is_player1 == true && res.data.is_player2 == true) {
         is_wait = false
+        is_full = res.data.is_full
       }
     }
   })
-  if (is_wait == false) {
-    Start()
-    is_full = true
+  if (is_full == false) {
+    if (is_wait == false) {
+      Start()
+      db.collection('RoundRecord').doc(roomnumber).update({
+        data: {
+          is_full: true
+        }
+      })
+    } else {
+      wx.showToast({
+        title: '请等待对手加入',
+        icon: 'loading',
+        duration: 2000
+      })
+    }
   } else {
     wx.showToast({
-      title: '请等待对手加入',
-      icon: 'loading',
-      duration: 2000
-    })
-  }
-  if (is_full == true){
-    wx.showToast({
-      title: '房间已满',
+      title: '房间已满，请重进游戏，输入新的房间号',
       icon: 'loading',
       duration: 2000
     })
   }
 }
+
+//测试缩短流程用
+// function WaitforPlayer2() {
+//   db.collection('RoundRecord').doc(roomnumber).get({
+//     success: function(res) {
+//       if (res.data.is_player1 == true && res.data.is_player2 == true) {
+//         is_wait = false
+//         is_full = res.data.is_full
+//       }
+//     }
+//   })
+//   if (is_wait == false) {
+//     Start()
+//     db.collection('RoundRecord').doc(roomnumber).update({
+//       data: {
+//         is_full: true
+//       }
+//     })
+//   } else {
+//     wx.showToast({
+//       title: '请等待对手加入',
+//       icon: 'loading',
+//       duration: 2000
+//     })
+//   }
+// }
 
 /**
  * 虚拟按钮通用方法
@@ -172,6 +236,12 @@ function ShowButton(ctx, posx, posy, posw, posh, text, func, aug = 0) {
           break
         case 'unveil':
           Unveil()
+          break
+        case 'remove':
+          Remove()
+          break
+        case 'doublecount':
+          DoubleCount()
           break
         default:
           console.error('按钮绑定函数无效')
@@ -212,23 +282,23 @@ function Throw() {
     }
     ShowDice(num.toString(), imgX, imgY)
   }
-  ShowButton(context, 20, (canvas.height / 2) - 125, 15, 20, '1', 'callcount', 1)
-  ShowButton(context, 20, (canvas.height / 2) - 95, 15, 20, '2', 'callcount', 2)
-  ShowButton(context, 20, (canvas.height / 2) - 65, 15, 20, '3', 'callcount', 3)
-  ShowButton(context, 20, (canvas.height / 2) - 35, 15, 20, '4', 'callcount', 4)
-  ShowButton(context, 20, (canvas.height / 2) - 5, 15, 20, '5', 'callcount', 5)
+  // ShowButton(context, 20, (canvas.height / 2) - 205, 15, 20, '1', 'callcount', 1)
+  ShowButton(context, 20, (canvas.height / 2) - 175, 15, 20, '2', 'callcount', 2)
+  ShowButton(context, 20, (canvas.height / 2) - 125, 15, 20, '3', 'callcount', 3)
+  ShowButton(context, 20, (canvas.height / 2) - 75, 15, 20, '4', 'callcount', 4)
+  ShowButton(context, 20, (canvas.height / 2) - 25, 15, 20, '5', 'callcount', 5)
   ShowButton(context, 20, (canvas.height / 2) + 25, 15, 20, '6', 'callcount', 6)
-  ShowButton(context, 20, (canvas.height / 2) + 55, 15, 20, '7', 'callcount', 7)
-  ShowButton(context, 20, (canvas.height / 2) + 85, 15, 20, '8', 'callcount', 8)
-  ShowButton(context, 20, (canvas.height / 2) + 115, 15, 20, '9', 'callcount', 9)
-  ShowButton(context, 20, (canvas.height / 2) + 145, 15, 20, '0', 'callcount', 0)
+  ShowButton(context, 20, (canvas.height / 2) + 75, 15, 20, '7', 'callcount', 7)
+  ShowButton(context, 20, (canvas.height / 2) + 125, 15, 20, '8', 'callcount', 8)
+  ShowButton(context, 20, (canvas.height / 2) + 175, 15, 20, '9', 'callcount', 9)
+  // ShowButton(context, 20, (canvas.height / 2) + 225, 15, 20, '0', 'callcount', 0)
 
-  ShowButton(context, 50, (canvas.height / 2) - 65, 15, 20, '一', 'callnum', '一')
-  ShowButton(context, 50, (canvas.height / 2) - 35, 15, 20, '二', 'callnum', '二')
-  ShowButton(context, 50, (canvas.height / 2) - 5, 15, 20, '三', 'callnum', '三')
-  ShowButton(context, 50, (canvas.height / 2) + 25, 15, 20, '四', 'callnum', '四')
-  ShowButton(context, 50, (canvas.height / 2) + 55, 15, 20, '五', 'callnum', '五')
-  ShowButton(context, 50, (canvas.height / 2) + 85, 15, 20, '六', 'callnum', '六')
+  ShowButton(context, 60, (canvas.height / 2) - 125, 15, 20, '一', 'callnum', '一')
+  ShowButton(context, 60, (canvas.height / 2) - 75, 15, 20, '二', 'callnum', '二')
+  ShowButton(context, 60, (canvas.height / 2) - 25, 15, 20, '三', 'callnum', '三')
+  ShowButton(context, 60, (canvas.height / 2) + 25, 15, 20, '四', 'callnum', '四')
+  ShowButton(context, 60, (canvas.height / 2) + 75, 15, 20, '五', 'callnum', '五')
+  ShowButton(context, 60, (canvas.height / 2) + 125, 15, 20, '六', 'callnum', '六')
 
   // ShowButton(context, 80, canvas.height - 30, 40, 10, '确定', 'call', 0)
   // ShowButton(context, canvas.width - 40, canvas.height - 30, 40, 10, '开', 'unveil', 0)
@@ -315,31 +385,64 @@ function CallNum(ctx, num) {
 }
 
 /**
- * 喊骰子个数和点数
+ * “喊”操作：设置注的个数和点数
  */
 function Call() {
   console.log(calling.count.toString() + '个' + calling.num)
+  let temp_count = 0
+  let temp_num = ''
+  let temp_remove = false
+  let temp_string = ''
   db.collection('RoundRecord').doc(roomnumber).get({
     success: function(res) {
       is_complete = res.data.is_complete
       if (player2 == false) {
+        temp_count = res.data.player2.call.count
+        temp_num = res.data.player2.call.num
         if (is_complete == true) {
-          db.collection('RoundRecord').doc(roomnumber).update({
-            data: {
-              is_complete: false,
-              player1: {
-                call: {
-                  count: calling.count,
-                  num: calling.num
-                }
+          if (calling.count > temp_count) {
+            console('111')
+            db.collection('RoundRecord').doc(roomnumber).update({
+              data: {
+                is_complete: false,
+                player1: {
+                  call: {
+                    count: calling.count,
+                    num: calling.num
+                  }
+                },
+                is_complete: false
               },
-              is_complete: false
-            },
-            success: function() {
-              console.log('write the call successfully')
+              success: function() {
+                console.log('write the call successfully')
+              }
+            })
+          } else if (calling.count = temp_count && TransferNumToInt(calling.num) > TransferNumToInt(temp_num)) {
+            console('222')
+            db.collection('RoundRecord').doc(roomnumber).update({
+              data: {
+                is_complete: false,
+                player1: {
+                  call: {
+                    count: calling.count,
+                    num: calling.num
+                  }
+                },
+                is_complete: false
+              },
+              success: function() {
+                console.log('write the call successfully')
+              }
+            })
+          } else {
+            temp_string = '对面喊' + temp_count.toString() + '个' + temp_num + '，你不能这么喊'
+            wx.showToast({
+              title: temp_string,
+              icon: 'none',
+              duration: 800
+            })
+          }
 
-            }
-          })
         } else {
           wx.showToast({
             title: '请等待对方喊点数',
@@ -377,6 +480,146 @@ function Call() {
   dt = setInterval(PlayersCorrespond, 2000)
 }
 
+/**
+ * 点数转化为数字
+ */
+function TransferNumToInt(num) {
+  let numint = 0
+  switch (num) {
+    case '':
+      numint = 0
+      break
+    case '一':
+      numint = 1
+      break
+    case '二':
+      numint = 2
+      break
+    case '三':
+      numint = 3
+      break
+    case '四':
+      numint = 4
+      break
+    case '五':
+      numint = 5
+      break
+    case '六':
+      numint = 6
+      break
+    default:
+      console.log('TransferNumToInt() fail')
+      break
+  }
+  return numint
+}
+
+/**
+ * “摘”操作
+ */
+function Remove() {
+  let temp_count = 0
+  let temp_num = ''
+  let temp_remove = false
+  let temp_string = ''
+
+  if (player2 == false) {
+    db.collection('RoundRecord').doc(roomnumber).get({
+      success: function(res) {
+        temp_count = data.player2.call.count
+        temp_num = data.player2.call.num
+        temp_remove = data.is_removed
+      }
+    })
+  } else {
+    db.collection('RoundRecord').doc(roomnumber).get({
+      success: function(res) {
+        temp_count = data.player1.call.count
+        temp_num = data.player1.call.num
+        temp_remove = data.is_removed
+      }
+    })
+  }
+  if (calling.count > temp_count - 2 && temp_remove == false) {
+    db.collection('RoundRecord').doc(roomnumber).update({
+      data: {
+        is_removed: true
+      }
+    })
+    temp_string = calling.count.toString() + '个' + calling.num + '摘'
+    wx.showToast({
+      title: temp_string,
+      icon: 'none',
+      duration: 800
+    })
+  } else if (temp_remove == true) {
+    temp_string = '已经摘过了'
+    wx.showToast({
+      title: temp_string,
+      icon: 'none',
+      duration: 800
+    })
+  } else {
+    temp_string = '对面喊' + temp_count.toString() + '个' + temp_num + '，你不能这么喊'
+    wx.showToast({
+      title: temp_string,
+      icon: 'none',
+      duration: 800
+    })
+  }
+}
+
+/**
+ * “飞”操作
+ */
+function DoubleCount() {
+  let temp_count = 0
+  let temp_num = ''
+  let temp_remove = false
+  let temp_string = ''
+
+  if (player2 == false) {
+    db.collection('RoundRecord').doc(roomnumber).get({
+      success: function(res) {
+        temp_count = data.player2.call.count
+        temp_num = data.player2.call.num
+        temp_remove = data.is_removed
+      }
+    })
+  } else {
+    db.collection('RoundRecord').doc(roomnumber).get({
+      success: function(res) {
+        temp_count = data.player1.call.count
+        temp_num = data.player1.call.num
+        temp_remove = data.is_removed
+      }
+    })
+  }
+  if (calling.count >= temp_count * 2) {
+    db.collection('RoundRecord').doc(roomnumber).update({
+      data: {
+        is_removed: false
+      }
+    })
+    temp_string = calling.count.toString() + '个' + calling.num + '飞'
+    wx.showToast({
+      title: temp_string,
+      icon: 'none',
+      duration: 800
+    })
+  } else {
+    temp_string = '对面喊' + temp_count.toString() + '个' + temp_num + '，你不能这么喊'
+    wx.showToast({
+      title: temp_string,
+      icon: 'none',
+      duration: 800
+    })
+  }
+}
+
+/**
+ * 默认player2先喊
+ */
 function Player2WaitFirst() {
   db.collection('RoundRecord').doc(roomnumber).get({
     success: function(res) {
@@ -384,7 +627,9 @@ function Player2WaitFirst() {
         wx.hideToast()
         ShowButton(context, 80, canvas.height - 30, 40, 10, '确定', 'call', 0)
         ShowButton(context, canvas.width - 40, canvas.height - 30, 40, 10, '开', 'unveil', 0)
-        var callbak_text = '对方喊' + res.data.player1.call.count + '个' + res.data.player1.call.num 
+        ShowButton(context, 20, canvas.height - 90, 40, 10, ' 摘', 'remove', 0)
+        ShowButton(context, 60, canvas.height - 90, 40, 10, ' 飞', 'doublecount', 0)
+        var callbak_text = '对方喊' + res.data.player1.call.count + '个' + res.data.player1.call.num
         wx.showToast({
           title: callbak_text,
           icon: 'none',
@@ -404,6 +649,9 @@ function Player2WaitFirst() {
   })
 }
 
+/**
+ * “开”操作
+ */
 function Unveil() {
   if (unveil_avail == false) {
     wx.showToast({
@@ -415,51 +663,98 @@ function Unveil() {
     if (player2 == false) {
       db.collection('RoundRecord').doc(roomnumber).get({
         success: function(res) {
-          switch (res.data.player2.call.num) {
-            case "一":
-              CompareDice(res.data.player2.call, '一', res.data.player1.dice.one, res.data.player2.dice.one)
-              break
-            case "二":
-              CompareDice(res.data.player2.call, '二', res.data.player1.dice.two, res.data.player2.dice.two)
-              break
-            case "三":
-              CompareDice(res.data.player2.call, '三', res.data.player1.dice.three, res.data.player2.dice.three)
-              break
-            case "四":
-              CompareDice(res.data.player2.call, '四', res.data.player1.dice.four, res.data.player2.dice.four)
-              break
-            case "五":
-              CompareDice(res.data.player2.call, '五', res.data.player1.dice.five, res.data.player2.dice.five)
-              break
-            case "六":
-              CompareDice(res.data.player2.call, '六', res.data.player1.dice.six, res.data.player2.dice.six)
-              break
+          if (res.data.is_removed == true) {
+            switch (res.data.player2.call.num) {
+              case "一":
+                CompareDice(res.data.player2.call, '一', res.data.player1.dice.one, res.data.player2.dice.one)
+                break
+              case "二":
+                CompareDice(res.data.player2.call, '二', res.data.player1.dice.two, res.data.player2.dice.two)
+                break
+              case "三":
+                CompareDice(res.data.player2.call, '三', res.data.player1.dice.three, res.data.player2.dice.three)
+                break
+              case "四":
+                CompareDice(res.data.player2.call, '四', res.data.player1.dice.four, res.data.player2.dice.four)
+                break
+              case "五":
+                CompareDice(res.data.player2.call, '五', res.data.player1.dice.five, res.data.player2.dice.five)
+                break
+              case "六":
+                CompareDice(res.data.player2.call, '六', res.data.player1.dice.six, res.data.player2.dice.six)
+                break
+            }
+          }
+          else{
+            switch (res.data.player2.call.num) {
+              case "一":
+                CompareDice(res.data.player2.call, '一', res.data.player1.dice.one, res.data.player2.dice.one)
+                break
+              case "二":
+                CompareDice(res.data.player2.call, '二', res.data.player1.dice.two + res.data.player1.dice.one, res.data.player2.dice.two + res.data.player2.dice.one)
+                break
+              case "三":
+                CompareDice(res.data.player2.call, '三', res.data.player1.dice.three + res.data.player1.dice.one, res.data.player2.dice.three + res.data.player2.dice.one)
+                break
+              case "四":
+                CompareDice(res.data.player2.call, '四', res.data.player1.dice.four + res.data.player1.dice.one, res.data.player2.dice.four + res.data.player2.dice.one)
+                break
+              case "五":
+                CompareDice(res.data.player2.call, '五', res.data.player1.dice.five + res.data.player1.dice.one, res.data.player2.dice.five + res.data.player2.dice.one)
+                break
+              case "六":
+                CompareDice(res.data.player2.call, '六', res.data.player1.dice.six + res.data.player1.dice.one, res.data.player2.dice.six + res.data.player2.dice.one)
+                break
+            }
           }
         }
       })
     } else {
       db.collection('RoundRecord').doc(roomnumber).get({
         success: function(res) {
-          console.log(res.data.player1.call.num)
-          switch (res.data.player1.call.num) {
-            case "一":
-              CompareDice(res.data.player1.call, '一', res.data.player2.dice.one, res.data.player1.dice.one)
-              break
-            case "二":
-              CompareDice(res.data.player1.call, '二', res.data.player2.dice.two, res.data.player1.dice.two)
-              break
-            case "三":
-              CompareDice(res.data.player1.call, '三', res.data.player2.dice.three, res.data.player1.dice.three)
-              break
-            case "四":
-              CompareDice(res.data.player1.call, '四', res.data.player2.dice.four, res.data.player1.dice.four)
-              break
-            case "五":
-              CompareDice(res.data.player1.call, '五', res.data.player2.dice.five, res.data.player1.dice.five)
-              break
-            case "六":
-              CompareDice(res.data.player1.call, '六', res.data.player2.dice.six, res.data.player1.dice.six)
-              break
+          if (res.data.is_removed == true){
+            switch (res.data.player1.call.num) {
+              case "一":
+                CompareDice(res.data.player1.call, '一', res.data.player2.dice.one, res.data.player1.dice.one)
+                break
+              case "二":
+                CompareDice(res.data.player1.call, '二', res.data.player2.dice.two, res.data.player1.dice.two)
+                break
+              case "三":
+                CompareDice(res.data.player1.call, '三', res.data.player2.dice.three, res.data.player1.dice.three)
+                break
+              case "四":
+                CompareDice(res.data.player1.call, '四', res.data.player2.dice.four, res.data.player1.dice.four)
+                break
+              case "五":
+                CompareDice(res.data.player1.call, '五', res.data.player2.dice.five, res.data.player1.dice.five)
+                break
+              case "六":
+                CompareDice(res.data.player1.call, '六', res.data.player2.dice.six, res.data.player1.dice.six)
+                break
+            }
+          }
+          else{
+            switch (res.data.player1.call.num) {
+              case "一":
+                CompareDice(res.data.player1.call, '一', res.data.player2.dice.one, res.data.player1.dice.one)
+                break
+              case "二":
+                CompareDice(res.data.player1.call, '二', res.data.player2.dice.two + res.data.player2.dice.one, res.data.player1.dice.two + res.data.player1.dice.one)
+                break
+              case "三":
+                CompareDice(res.data.player1.call, '三', res.data.player2.dice.three + res.data.player2.dice.one, res.data.player1.dice.three + res.data.player1.dice.one)
+                break
+              case "四":
+                CompareDice(res.data.player1.call, '四', res.data.player2.dice.four + res.data.player2.dice.one, res.data.player1.dice.four + res.data.player1.dice.one)
+                break
+              case "五":
+                CompareDice(res.data.player1.call, '五', res.data.player2.dice.five + res.data.player2.dice.one, res.data.player1.dice.five + res.data.player1.dice.one)
+                break
+              case "六":
+                CompareDice(res.data.player1.call, '六', res.data.player2.dice.six + res.data.player2.dice.one, res.data.player1.dice.six + res.data.player1.dice.one)
+                break
+            }
           }
         }
       })
